@@ -1,6 +1,7 @@
 # 📄DocuChat-AI
 DocuChat AI is an advanced, high-performance Retrieval-Augmented Generation (RAG) system designed to maximize the value of your documents. It goes far beyond traditional text analysis, leveraging a sophisticated multi-modal architecture to intelligently extract, interpret, and reason over both textual and visual content. Powered by FastAPI ⚡ for a fast and reliable backend, and Qdrant 🔍 for ultra-efficient vector search, DocuChat AI delivers accurate, context-aware, and instant responses directly from your documents. Whether it’s complex reports, images, or mixed media, this system ensures trustworthy insights, real-time performance, and seamless document comprehension.
 
+```
 ✨ Key Features
 
 🧠 Intelligent Document Processing: Automatically partitions PDFs, extracting text, tables, and images for complete understanding.
@@ -14,7 +15,7 @@ DocuChat AI is an advanced, high-performance Retrieval-Augmented Generation (RAG
 📡 Real-time WebSocket Updates: Instant updates on your document’s processing.
 
 🔒 Efficient Data Management: Documents and data are managed in isolated Qdrant collections, with simple API endpoints for permanent deletion.
-
+```
 
 🛠️ Workflow and Architecture
 
@@ -55,3 +56,5 @@ Retrieval: Queries sent to POST /api/v1/query are vectorized and searched in Qdr
 Generation: Retrieved chunks are provided as context to Groq llama-3.1.
 
 Answering: Generates concise, accurate answers with source references and related images. ✅
+
+```
