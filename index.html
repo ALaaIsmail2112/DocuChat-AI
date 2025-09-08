@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Q&A - RAG System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* ---------- existing styles (kept) ---------- */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-primary: #0f172a; --bg-secondary: #1e293b; --bg-tertiary: #334155;
+            --accent-primary: #3b82f6; --accent-secondary: #06b6d4; --accent-success: #10b981;
+            --accent-warning: #f59e0b; --accent-error: #ef4444;
+            --text-primary: #f8fafc; --text-secondary: #cbd5e1; --text-muted: #64748b;
+            --border-color: #475569; --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --gradient-primary: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            --gradient-bg: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+        }
+        body {
+            background: var(--gradient-bg); color: var(--text-primary);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6; min-height: 100vh;
+        }
+        .header { background: rgba(15,23,42,0.95); backdrop-filter: blur(10px); border-bottom:1px solid var(--border-color); padding:1rem 0; position:sticky; top:0; z-index:50;}
+        .header-content{ max-width:1200px; margin:0 auto; padding:0 2rem; display:flex; align-items:center; gap:1rem;}
+        .logo{ font-size:1.5rem; font-weight:700; background:var(--gradient-primary); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; display:flex; align-items:center; gap:0.5rem;}
+        .status-indicator{ margin-left:auto; display:flex; align-items:center; gap:0.5rem; font-size:0.875rem; color:var(--text-secondary); }
+        .status-dot{ width:8px; height:8px; border-radius:50%; background:var(--accent-success); animation:pulse 2s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.5;} }
+
+        .main-container{ max-width:1200px; margin:0 auto; padding:2rem; display:grid; grid-template-columns:1fr 1fr; gap:2rem; min-height:calc(100vh - 200px); }
+        @media (max-width:1024px) { .main-container { grid-template-columns:1fr; gap:1.5rem; } }
+
+        .card{ background: rgba(30,41,59,0.6); border:1px solid var(--border-color); border-radius:12px; padding:1.5rem; box-shadow:var(--shadow); backdrop-filter: blur(10px); transition:all 0.3s ease; position:relative; overflow:hidden;}
+        .card:hover{ border-color:var(--accent-primary); box-shadow:var(--shadow-lg); transform:translateY(-2px); }
+        .card::before{ content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--gradient-primary); opacity:0; transition:opacity 0.3s ease; }
+        .card:hover::before{ opacity:1; }
+        .card-title{ display:flex; align-items:center; gap:0.75rem; font-size:1.125rem; font-weight:600; margin-bottom:1.5rem; color:var(--text-primary); }
+        .card-icon{ width:24px; height:24px; color:var(--accent-primary); }
+
+        .file-upload-area{ border:2px dashed var(--border-color); border-radius:8px; padding:2rem; text-align:center; cursor:pointer; transition:all 0.3s ease; background: rgba(51,65,85,0.3); position:relative; overflow:hidden; }
+        .file-upload-area::before{ content:''; position:absolute; top:0; left:-100%; width:100%; height:100%; background: linear-gradient(90deg, transparent, rgba(59,130,246,0.1), transparent); transition:left 0.6s;}
+        .file-upload-area:hover{ border-color:var(--accent-primary); background: rgba(59,130,246,0.05); }
+        .file-upload-area:hover::before{ left:100%; }
+        .file-upload-area.dragover{ border-color:var(--accent-success); background: rgba(16,185,129,0.1); transform:scale(1.02); }
+
+        .upload-icon{ font-size:3rem; color:var(--text-muted); margin-bottom:1rem; transition: color 0.3s ease; }
+        .file-info{ background: rgba(16,185,129,0.1); border:1px solid var(--accent-success); border-radius:8px; padding:1rem; margin-top:1rem; display:none; animation:slideIn 0.3s ease-out; }
+        @keyframes slideIn { from{opacity:0; transform:translateY(-10px);} to{opacity:1; transform:translateY(0);} }
+        .file-details{ display:flex; align-items:center; justify-content:space-between; }
+        .file-meta{ display:flex; flex-direction:column; }
+        .file-name{ font-weight:600; color:var(--text-primary); }
+        .file-size{ font-size:0.875rem; color:var(--text-secondary); }
+        .remove-file{ background:none; border:none; color:var(--accent-error); font-size:1.25rem; cursor:pointer; padding:0.5rem; border-radius:4px; transition:background-color 0.3s ease; }
+        .remove-file:hover{ background: rgba(239,68,68,0.1); }
+
+        .input-group{ margin-bottom:1.5rem; }
+        .input-label{ display:block; font-size:0.875rem; font-weight:500; color:var(--text-secondary); margin-bottom:0.5rem; }
+        .question-input{ width:100%; background: rgba(51,65,85,0.5); border:1px solid var(--border-color); border-radius:8px; padding:0.75rem 1rem; color:var(--text-primary); font-size:1rem; transition:all 0.3s ease; }
+        .question-input:focus{ outline:none; border-color:var(--accent-primary); box-shadow:0 0 0 3px rgba(59,130,246,0.1); background: rgba(51,65,85,0.8); }
+        .input-hint{ font-size:0.75rem; color:var(--text-muted); margin-top:0.5rem; }
+
+        .button-group{ display:flex; gap:0.75rem; }
+        .btn{ padding:0.75rem 1.5rem; border:none; border-radius:8px; font-size:0.875rem; font-weight:600; cursor:pointer; transition:all 0.3s ease; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; gap:0.5rem; }
+        .btn::before{ content:''; position:absolute; top:0; left:-100%; width:100%; height:100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent); transition:left 0.5s; }
+        .btn:hover::before{ left:100%; }
+        .btn-secondary{ background:var(--bg-tertiary); color:var(--text-primary); flex:1; }
+        .btn-secondary:hover{ background:var(--border-color); transform:translateY(-1px); }
+        .btn-primary{ background:var(--gradient-primary); color:white; flex:1; }
+        .btn-primary:hover:not(:disabled){ transform:translateY(-1px); box-shadow:var(--shadow-lg); }
+        .btn:disabled{ opacity:0.5; cursor:not-allowed; transform:none !important; }
+
+        .output-container{ height:100%; display:flex; flex-direction:column; }
+        .output-header{ display:flex; align-items:center; justify-content:between; margin-bottom:1rem; }
+        .output-content{ background: rgba(15,23,42,0.5); border:1px solid var(--border-color); border-radius:8px; padding:1.5rem; flex:1; overflow-y:auto; max-height:500px; position:relative; }
+        .copy-btn{ background:none; border:none; color:var(--text-muted); cursor:pointer; padding:0.5rem; border-radius:4px; transition:color 0.3s ease; font-size:0.75rem; }
+        .copy-btn:hover{ color:var(--accent-primary); }
+
+        .placeholder{ text-align:center; color:var(--text-muted); font-style:italic; padding:3rem 1rem; }
+        .loading{ color:var(--accent-warning); display:flex; align-items:center; gap:0.5rem; }
+        .loading::before{ content:''; width:16px; height:16px; border:2px solid var(--accent-warning); border-top:2px solid transparent; border-radius:50%; animation:spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .question-block{ margin-bottom:1.5rem; padding-bottom:1rem; border-bottom:1px solid var(--border-color); }
+        .question-label{ color:var(--accent-primary); font-weight:600; margin-bottom:0.5rem; display:flex; align-items:center; gap:0.5rem; }
+        .answer-block{ margin-bottom:1.5rem; }
+        .answer-label{ color:var(--accent-success); font-weight:600; margin-bottom:0.5rem; display:flex; align-items:center; gap:0.5rem; }
+        .answer-text{ color:var(--text-primary); line-height:1.7; }
+
+        .sources-block{ margin-top:1rem; }
+        .sources-label{ color:var(--text-secondary); font-size:0.875rem; font-weight:500; margin-bottom:0.5rem; }
+        .sources-list{ list-style:none; font-size:0.75rem; color:var(--text-muted); }
+        .sources-list li{ padding:0.25rem 0; border-left:2px solid var(--accent-primary); padding-left:0.75rem; margin-bottom:0.25rem; }
+
+        .error-text{ color:var(--accent-error); background: rgba(239,68,68,0.1); padding:1rem; border-radius:6px; border-left:4px solid var(--accent-error); }
+        .success-text{ color:var(--accent-success); background: rgba(16,185,129,0.1); padding:1rem; border-radius:6px; border-left:4px solid var(--accent-success); }
+
+        .images-block{ margin-top:1rem; }
+        .images-label{ color:var(--text-secondary); font-size:0.875rem; font-weight:500; margin-bottom:0.5rem; }
+        .image-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:1rem; }
+        .image-item{ background: rgba(30,41,59,0.8); border-radius:8px; overflow:hidden; border:1px solid var(--border-color); transition:transform 0.3s ease; cursor:pointer; }
+        .image-item:hover{ transform:translateY(-2px); box-shadow:var(--shadow-lg); }
+        .image-item img{ width:100%; height:120px; object-fit:cover; border-bottom:1px solid var(--border-color); }
+        .image-description{ padding:0.75rem; font-size:0.75rem; color:var(--text-secondary); max-height:80px; overflow-y:auto; }
+
+        .preview-panel{ background: rgba(15,23,42,0.7); border:1px solid var(--border-color); border-radius:8px; padding:1rem; font-size:0.75rem; color:var(--text-muted); max-height:150px; overflow-y:auto; }
+
+        ::-webkit-scrollbar{ width:6px; }
+        ::-webkit-scrollbar-track{ background:var(--bg-secondary); }
+        ::-webkit-scrollbar-thumb{ background:var(--border-color); border-radius:3px; }
+        ::-webkit-scrollbar-thumb:hover{ background:var(--accent-primary); }
+
+        .toast{ position:fixed; top:2rem; right:2rem; background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:8px; padding:1rem; box-shadow:var(--shadow-lg); z-index:100; transform:translateX(100%); transition:transform 0.3s ease; display:flex; align-items:center; gap:0.5rem;}
+        .toast.show{ transform:translateX(0); } .toast.success{ border-left:4px solid var(--accent-success); } .toast.error{ border-left:4px solid var(--accent-error); }
+
+        /* ---------- modal styles (new) ---------- */
+        .image-modal {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+        .image-modal.show { display: flex; }
+
+        .image-modal-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+        }
+
+        .image-modal-panel {
+            position: relative;
+            width: 90%;
+            max-width: 1000px;
+            max-height: 90vh;
+            background: rgba(15,23,42,0.95);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: var(--shadow-lg);
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 1rem;
+            overflow: hidden;
+            padding: 1rem;
+        }
+
+        @media (max-width:900px) {
+            .image-modal-panel { grid-template-columns: 1fr; max-height: 85vh; padding: 0.75rem; }
+        }
+
+        .modal-image-wrap {
+            display:flex; align-items:center; justify-content:center;
+            background: rgba(30,41,59,0.6); border-radius:8px; padding:0.5rem; overflow:auto;
+        }
+
+        .modal-image {
+            max-width: 100%;
+            max-height: calc(90vh - 120px);
+            object-fit: contain;
+            border-radius:8px;
+            box-shadow: var(--shadow);
+        }
+
+        .modal-side {
+            display:flex; flex-direction:column; gap:0.75rem; padding:0.5rem; overflow:auto;
+        }
+
+        .modal-side .meta { color:var(--text-secondary); font-size:0.9rem; }
+        .modal-side .desc { color:var(--text-primary); font-size:0.95rem; line-height:1.5; background: rgba(30,41,59,0.4); padding:0.75rem; border-radius:8px; }
+
+        .modal-controls { display:flex; gap:0.5rem; align-items:center; margin-top:auto; }
+        .modal-btn {
+            background:var(--bg-tertiary); color:var(--text-primary); border:none; padding:0.5rem 0.75rem; border-radius:8px; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:0.5rem;
+        }
+        .modal-close {
+            position:absolute; top:10px; right:10px; background:none; border:none; color:var(--text-secondary); font-size:1.25rem; cursor:pointer;
+        }
+
+        .modal-nav { display:flex; gap:0.5rem; align-items:center; justify-content:center; }
+        .modal-nav .nav-btn { background:var(--gradient-primary); color:#fff; border:none; padding:0.5rem 0.75rem; border-radius:8px; cursor:pointer; font-weight:700; }
+        .modal-filename { font-size:0.85rem; color:var(--text-muted); word-break:break-word; }
+        .image-modal {
+            position: fixed;
+            inset: 0;
+            display: none; /* بيتفعل بالـ JS */
+            justify-content: center;
+            align-items: center;
+            background: rgba(0,0,0,0.8);
+            z-index: 9999;
+            }
+
+        .image-modal-panel {
+            display: flex;
+            flex-direction: row;
+            gap: 1rem;
+            max-width: 90%;
+            max-height: 90%;
+            background: #111;
+            border-radius: 10px;
+            overflow: hidden;
+            }
+
+        .modal-image-wrap {
+            flex: 2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+            }
+
+        .modal-image {
+            max-width: 100%;
+            max-height: 85vh; /* يمنعها من الاختفاء لو الشاشة كبيرة */
+            height: auto;
+            display: block;
+            }
+
+        .modal-side {
+            flex: 1;
+            padding: 1rem;
+            color: #fff;
+            overflow-y: auto;
+            }
+
+
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <i class="fas fa-robot"></i>
+                Document Q&A RAG System
+            </div>
+            <div class="status-indicator">
+                <div class="status-dot"></div>
+                System Ready
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Left Panel - Upload & Query -->
+        <div class="left-panel">
+            <!-- Upload Card -->
+            <div class="card">
+                <div class="card-title">
+                    <i class="fas fa-cloud-upload-alt card-icon"></i>
+                    Upload Document
+                </div>
+                
+                <div class="file-upload-area" id="fileUploadArea">
+                    <div id="uploadPrompt">
+                        <div class="upload-icon">
+                           <svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" fill="currentColor" class="bi bi-filetype-pdf" viewBox="0 0 16 16">
+  <path fill-rule="evenodd" d="M14 4.5V14a2 2 0 0 1-2 2h-1v-1h1a1 1 0 0 0 1-1V4.5h-2A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v9H2V2a2 2 0 0 1 2-2h5.5zM1.6 11.85H0v3.999h.791v-1.342h.803q.43 0 .732-.173.305-.175.463-.474a1.4 1.4 0 0 0 .161-.677q0-.375-.158-.677a1.2 1.2 0 0 0-.46-.477q-.3-.18-.732-.179m.545 1.333a.8.8 0 0 1-.085.38.57.57 0 0 1-.238.241.8.8 0 0 1-.375.082H.788V12.48h.66q.327 0 .512.181.185.183.185.522m1.217-1.333v3.999h1.46q.602 0 .998-.237a1.45 1.45 0 0 0 .595-.689q.196-.45.196-1.084 0-.63-.196-1.075a1.43 1.43 0 0 0-.589-.68q-.396-.234-1.005-.234zm.791.645h.563q.371 0 .609.152a.9.9 0 0 1 .354.454q.118.302.118.753a2.3 2.3 0 0 1-.068.592 1.1 1.1 0 0 1-.196.422.8.8 0 0 1-.334.252 1.3 1.3 0 0 1-.483.082h-.563zm3.743 1.763v1.591h-.79V11.85h2.548v.653H7.896v1.117h1.606v.638z"/>
+</svg>
+                        </div>
+                        <div class="upload-text">Drop your document here</div>
+                        <div class="upload-hint">or click to browse • Supports PDF</div>
+                    </div>
+                    
+                    <div class="file-info" id="fileInfo">
+                        <div class="file-details">
+                            <div class="file-meta">
+                                <div class="file-name" id="fileName"></div>
+                                <div class="file-size" id="fileSize"></div>
+                            </div>
+                            <button class="remove-file" id="removeFile">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <input type="file" id="fileInput" accept=".pdf" style="display: none;">
+            </div>
+
+            <!-- Question Card -->
+            <div class="card">
+                <div class="card-title">
+                    <i class="fas fa-question-circle card-icon"></i>
+                    Ask a Question
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">What would you like to know about your document?</label>
+                    <input type="text" class="question-input" placeholder="e.g., What are the main topics discussed?" id="questionInput">
+                    <div class="input-hint">
+                        Try: "Summarize the key points", "What is this document about?", "Extract important data"
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-secondary" id="clearBtn">
+                        <i class="fas fa-eraser"></i>
+                        Clear
+                    </button>
+                    <button class="btn btn-primary" id="submitBtn" disabled>
+                        <i class="fas fa-paper-plane"></i>
+                        Ask Question
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel - Results -->
+        <div class="right-panel">
+            <!-- Answer Card -->
+            <div class="card output-container">
+                <div class="output-header">
+                    <div class="card-title">
+                        <i class="fas fa-brain card-icon"></i>
+                        AI Answer
+                    </div>
+                    <button class="copy-btn" id="copyBtn">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
+                
+                <div class="output-content" id="outputContent">
+                    <div class="placeholder">
+                        <i class="fas fa-lightbulb" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
+                        Upload a document and ask a question to get started
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview Card -->
+            <div class="card">
+                <div class="card-title">
+                    <i class="fas fa-eye card-icon"></i>
+                    Document Preview
+                </div>
+                <div class="preview-panel" id="documentPreview">
+                    No document loaded
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ---------- Image Modal (new) ---------- -->
+    <div class="image-modal" id="imageModal" role="dialog">
+        <div class="image-modal-backdrop" id="modalBackdrop"></div>
+        <div class="image-modal-panel" role="document" aria-modal="true">
+            <button class="modal-close" id="modalClose" aria-label="Close">&times;</button>
+
+            <div class="modal-image-wrap">
+                <img id="modalImage" class="modal-image" src="" alt="Preview image" />
+            </div>
+
+            <div class="modal-side">
+                <div>
+                    <div class="modal-filename" id="modalFilename">Filename</div>
+                    <div class="meta" id="modalMeta">Image X of Y</div>
+                </div>
+
+                <div class="desc" id="modalDescription">Description will appear here.</div>
+
+                <div class="modal-controls">
+                    <div class="modal-nav" style="flex:1">
+                        <button class="nav-btn" id="modalPrev" aria-label="Previous image">⟵ Prev</button>
+                        <button class="nav-btn" id="modalNext" aria-label="Next image">Next ⟶</button>
+                    </div>
+
+                    <div style="display:flex; gap:0.5rem;">
+                        <button class="modal-btn" id="modalDownload" title="Open image in new tab">
+                            <i class="fas fa-external-link-alt"></i> Open
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentDocument = null;
+        let uploadedFileId = null;
+        const API_BASE_URL = window.location.origin + '/api/v1';
+
+        // Modal-related globals
+        let currentImages = [];
+        let currentImageIndex = 0;
+
+        // DOM Elements
+        const elements = {
+            fileUploadArea: document.getElementById('fileUploadArea'),
+            fileInput: document.getElementById('fileInput'),
+            uploadPrompt: document.getElementById('uploadPrompt'),
+            fileInfo: document.getElementById('fileInfo'),
+            fileName: document.getElementById('fileName'),
+            fileSize: document.getElementById('fileSize'),
+            removeFile: document.getElementById('removeFile'),
+            questionInput: document.getElementById('questionInput'),
+            submitBtn: document.getElementById('submitBtn'),
+            clearBtn: document.getElementById('clearBtn'),
+            outputContent: document.getElementById('outputContent'),
+            documentPreview: document.getElementById('documentPreview'),
+            copyBtn: document.getElementById('copyBtn'),
+
+            // modal elements
+            imageModal: document.getElementById('imageModal'),
+            modalBackdrop: document.getElementById('modalBackdrop'),
+            modalImage: document.getElementById('modalImage'),
+            modalDescription: document.getElementById('modalDescription'),
+            modalFilename: document.getElementById('modalFilename'),
+            modalMeta: document.getElementById('modalMeta'),
+            modalPrev: document.getElementById('modalPrev'),
+            modalNext: document.getElementById('modalNext'),
+            modalClose: document.getElementById('modalClose'),
+            modalDownload: document.getElementById('modalDownload')
+        };
+
+        // Initialize event listeners when the page loads
+        document.addEventListener('DOMContentLoaded', initEventListeners);
+
+        // Event Listeners
+        function initEventListeners() {
+            elements.fileUploadArea.addEventListener('click', () => { elements.fileInput.click(); });
+            elements.fileUploadArea.addEventListener('dragover', handleDragOver);
+            elements.fileUploadArea.addEventListener('dragleave', handleDragLeave);
+            elements.fileUploadArea.addEventListener('drop', handleDrop);
+            elements.fileInput.addEventListener('change', handleFileSelect);
+            elements.removeFile.addEventListener('click', (e) => { e.stopPropagation(); clearDocument(); });
+            elements.submitBtn.addEventListener('click', handleQuestion);
+            elements.clearBtn.addEventListener('click', clearOutput);
+            elements.copyBtn.addEventListener('click', copyToClipboard);
+            elements.questionInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !elements.submitBtn.disabled) handleQuestion();
+            });
+
+            // Modal listeners
+            elements.modalClose.addEventListener('click', closeImageModal);
+            elements.modalBackdrop.addEventListener('click', closeImageModal);
+            elements.modalPrev.addEventListener('click', showPreviousImage);
+            elements.modalNext.addEventListener('click', showNextImage);
+            elements.modalDownload.addEventListener('click', () => {
+                if (!currentImages || !currentImages[currentImageIndex]) return;
+                const url = `${API_BASE_URL}/image/${uploadedFileId}/${currentImages[currentImageIndex].filename}`;
+                window.open(url, '_blank');
+            });
+
+            // keyboard navigation
+            document.addEventListener('keydown', (e) => {
+                if (!elements.imageModal.classList.contains('show')) return;
+                if (e.key === 'Escape') closeImageModal();
+                if (e.key === 'ArrowLeft') showPreviousImage();
+                if (e.key === 'ArrowRight') showNextImage();
+            });
+        }
+
+        // File Upload Handlers
+        function handleDragOver(e) { e.preventDefault(); e.stopPropagation(); elements.fileUploadArea.classList.add('dragover'); }
+        function handleDragLeave() { elements.fileUploadArea.classList.remove('dragover'); }
+        function handleDrop(e) { e.preventDefault(); e.stopPropagation(); elements.fileUploadArea.classList.remove('dragover'); const files = e.dataTransfer.files; if (files.length > 0) processFile(files[0]); }
+        function handleFileSelect(e) { if (e.target.files && e.target.files.length > 0) { processFile(e.target.files[0]); e.target.value = ''; } }
+
+        // File Processing (unchanged behavior)
+        async function processFile(file) {
+            if (!validateFile(file)) return;
+            currentDocument = file;
+            elements.fileName.textContent = file.name;
+            elements.fileSize.textContent = formatFileSize(file.size);
+            elements.uploadPrompt.style.display = 'none';
+            elements.fileInfo.style.display = 'block';
+            showLoading('Uploading and processing document...');
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch(`${API_BASE_URL}/upload-document`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Upload failed');
+                }
+
+                const data = await response.json();
+                uploadedFileId = data.document_id;
+                elements.submitBtn.disabled = false;
+
+                showSuccess('Document uploaded successfully! You can now ask questions.');
+                elements.documentPreview.textContent = `Document: ${file.name} (ID: ${uploadedFileId})`;
+                showToast('Document uploaded successfully!', 'success');
+
+                // Start processing the document
+                const processResponse = await fetch(`${API_BASE_URL}/process-document/${uploadedFileId}`, {
+                    method: 'POST'
+                });
+
+                if (!processResponse.ok) {
+                    throw new Error('Failed to start document processing');
+                }
+
+                // Poll for processing status
+                const checkStatus = async () => {
+                    try {
+                        const statusResponse = await fetch(`${API_BASE_URL}/document-status/${uploadedFileId}`);
+                        if (statusResponse.ok) {
+                            const statusData = await statusResponse.json();
+
+                            if (statusData.status === 'completed') {
+                                showSuccess(`Document processed successfully! Found ${statusData.elements_count} elements.`);
+                                showToast('Document processing completed!', 'success');
+                            } else if (statusData.status === 'failed') {
+                                showError('Document processing failed');
+                                showToast('Document processing failed!', 'error');
+                            } else {
+                                // Still processing, check again in 2 seconds
+                                setTimeout(checkStatus, 2000);
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error checking status:', error);
+                        setTimeout(checkStatus, 2000);
+                    }
+                };
+
+                // Start checking status
+                setTimeout(checkStatus, 2000);
+
+            } catch (error) {
+                console.error('Upload error:', error);
+                showError(error.message || 'Upload failed');
+                showToast(error.message || 'Upload failed!', 'error');
+                clearDocument();
+            }
+        }
+
+        function validateFile(file) {
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            if (file.size > maxSize) { showError('File size must be less than 10MB'); showToast('File too large!', 'error'); return false; }
+            if (!file.name.toLowerCase().endsWith('.pdf')) { showError('Please select a PDF file'); showToast('Invalid file type!', 'error'); return false; }
+            return true;
+        }
+
+        // Helper Functions (unchanged)
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function showLoading(message) {
+            elements.outputContent.innerHTML = `
+                <div class="loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    ${message}
+                </div>
+            `;
+        }
+
+        function showSuccess(message) {
+            elements.outputContent.innerHTML = `
+                <div class="success-text">
+                    <i class="fas fa-check-circle"></i>
+                    ${message}
+                </div>
+            `;
+        }
+
+        function showError(message) {
+            elements.outputContent.innerHTML = `
+                <div class="error-text">
+                    <i class="fas fa-exclamation-circle"></i>
+                    ${message}
+                </div>
+            `;
+        }
+
+        function showToast(message, type) {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+                ${message}
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.classList.add('show'); }, 10);
+            setTimeout(() => { toast.classList.remove('show'); setTimeout(() => { document.body.removeChild(toast); }, 300); }, 3000);
+        }
+
+        function clearDocument() {
+            currentDocument = null;
+            uploadedFileId = null;
+            elements.fileInput.value = '';
+            elements.uploadPrompt.style.display = 'block';
+            elements.fileInfo.style.display = 'none';
+            elements.submitBtn.disabled = true;
+            elements.documentPreview.textContent = 'No document loaded';
+            showToast('Document removed', 'success');
+        }
+
+        function clearOutput() {
+            elements.questionInput.value = '';
+            elements.outputContent.innerHTML = `
+                <div class="placeholder">
+                    <i class="fas fa-lightbulb" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
+                    Upload a document and ask a question to get started
+                </div>
+            `;
+        }
+
+        function copyToClipboard() {
+            const textToCopy = elements.outputContent.innerText;
+            navigator.clipboard.writeText(textToCopy)
+                .then(() => showToast('Copied to clipboard!', 'success'))
+                .catch(err => showToast('Failed to copy!', 'error'));
+        }
+
+        function escapeHtml(unsafe) {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function formatAnswer(answer) {
+            // Convert markdown-like formatting to HTML
+            return answer
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/\n\n/g, '<br><br>')
+                .replace(/\n/g, '<br>');
+        }
+
+        // Question Handling
+        async function handleQuestion() {
+            const question = elements.questionInput.value.trim();
+            if (!question || !uploadedFileId) return;
+
+            showLoading('Analyzing document and generating answer...');
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/query`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ document_id: uploadedFileId, question: question, max_results: 5 })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Query failed');
+                }
+
+                const data = await response.json();
+
+                if (data.status === "PROCESSING") {
+                    showToast("⏳ Document is still processing. Please wait...", "warning");
+                    return;
+                }
+                if (data.status === "FAILED") {
+                    showToast("❌ Document processing failed. Please re-upload.", "error");
+                    return;
+                }
+
+                // Display answer and images
+                displayAnswer(question, data.answer, data.sources, data.related_images || []);
+
+                showToast('Answer generated successfully!', 'success');
+
+            } catch (error) {
+                console.error('Query error:', error);
+                showError(error.message || 'Failed to get answer');
+                showToast(error.message || 'Query failed!', 'error');
+            }
+        }
+
+        // Display Functions
+        function displayAnswer(question, answer, sources = [], images = []) {
+            // Store images for modal navigation
+            currentImages = images || [];
+            currentImageIndex = 0;
+
+            let sourcesHtml = '';
+            if (sources && sources.length > 0) {
+                sourcesHtml = `
+                    <div class="sources-block">
+                        <div class="sources-label">📖 Sources:</div>
+                        <ul class="sources-list">
+                            ${sources.map(source => {
+                                const pageNum = source.metadata?.page_number || 'N/A';
+                                const contentType = source.content_type || 'text';
+                                return `<li>Page ${pageNum} (${contentType})</li>`;
+                            }).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+
+            let imagesHtml = '';
+            if (images && images.length > 0) {
+                imagesHtml = `
+                    <div class="images-block">
+                        <div class="images-label">🖼️ Relevant Images (${images.length}):</div>
+                        <div class="image-grid">
+                            ${images.map((img, index) => `
+                                <div class="image-item" data-index="${index}">
+                                    <img src="${API_BASE_URL}/image/${uploadedFileId}/${img.filename}" 
+                                         alt="${escapeHtml(img.description || '')}" 
+                                         onerror="this.style.display='none'" />
+                                    <div class="image-description">
+                                        ${escapeHtml(img.description || 'No description available')}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            elements.outputContent.innerHTML = `
+                <div class="question-block">
+                    <div class="question-label">
+                        <i class="fas fa-question-circle"></i>
+                        Question:
+                    </div>
+                    <div>${escapeHtml(question)}</div>
+                </div>
+                <div class="answer-block">
+                    <div class="answer-label">
+                        <i class="fas fa-robot"></i>
+                        Answer:
+                    </div>
+                    <div class="answer-text">${formatAnswer(answer)}</div>
+                </div>
+                ${sourcesHtml}
+                ${imagesHtml}
+            `;
+
+            // Attach click listeners to newly rendered image-items
+            const imageItems = elements.outputContent.querySelectorAll('.image-item');
+            imageItems.forEach(item => {
+                item.addEventListener('click', (e) => {
+                    const idx = Number(item.getAttribute('data-index'));
+                    openImageModal(idx);
+                });
+            });
+        }
+
+        // Modal Functions
+        function openImageModal(index) {
+            if (!currentImages || currentImages.length === 0) return;
+            if (index < 0 || index >= currentImages.length) return;
+
+            currentImageIndex = index;
+            updateModalContent();
+            elements.imageModal.classList.add('show');
+            document.body.style.overflow = 'hidden'; // Prevent background scrolling
+            elements.imageModal.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeImageModal() {
+            elements.imageModal.classList.remove('show');
+            document.body.style.overflow = ''; // Restore scrolling
+            elements.imageModal.setAttribute('aria-hidden', 'true');
+        }
+
+        function showPreviousImage() {
+            if (currentImageIndex > 0) {
+                currentImageIndex--;
+                updateModalContent();
+            }
+        }
+
+        function showNextImage() {
+            if (currentImageIndex < currentImages.length - 1) {
+                currentImageIndex++;
+                updateModalContent();
+            }
+        }
+
+        function updateModalContent() {
+            if (!currentImages || currentImages.length === 0) return;
+            const image = currentImages[currentImageIndex];
+            const imageSrc = `${API_BASE_URL}/image/${uploadedFileId}/${image.filename}`;
+
+            elements.modalImage.src = imageSrc;
+            elements.modalImage.alt = image.description || image.filename || 'Image';
+            elements.modalDescription.textContent = image.description || 'No description available';
+            elements.modalFilename.textContent = image.filename || 'Unknown filename';
+            elements.modalMeta.textContent = `${currentImageIndex + 1} of ${currentImages.length}`;
+
+            // enable/disable prev/next
+            elements.modalPrev.disabled = currentImageIndex === 0;
+            elements.modalNext.disabled = currentImageIndex === currentImages.length - 1;
+
+            // hide prev/next if only one image
+            if (currentImages.length === 1) {
+                elements.modalPrev.style.display = 'none';
+                elements.modalNext.style.display = 'none';
+            } else {
+                elements.modalPrev.style.display = 'inline-flex';
+                elements.modalNext.style.display = 'inline-flex';
+            }
+        }
+
+    </script>
+</body>
+</html>
