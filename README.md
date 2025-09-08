@@ -51,4 +51,11 @@ DocuChat AI follows a **streamlined, high-performance workflow**, from document 
 - **LangChain** 🔗: Orchestrates sophisticated RAG pipelines  
 - **Groq** ⚡: High-speed LLM for summarization and answer generation  
 - **Google AI Studio** 🖼️: Converts images to text  
-- **WebSocket** 🔄: Real-time, bidirectional communication  
+- **WebSocket** 🔄: Real-time, bidirectional communication
+
+---
+## 🏛️ Architecture Diagram
+  <img width="1024" height="682" alt="image" src="https://github.com/user-attachments/assets/e0b028b7-2f83-46a3-88d5-ba62d4f226af" />
+
+---
+
