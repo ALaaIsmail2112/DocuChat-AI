@@ -15,6 +15,38 @@
 
 ---
 
+## Project Tree Structure
+```
+PROJECT_ROOT/
+│
+├── app/
+│
+├── api/
+│   ├── __init__.py
+│   ├── documents.py
+│   ├── queries.py
+│   └── websocket_status.py
+│
+├── core/
+│   ├── database.py
+│   ├── exceptions.py
+│   └── shared_store.py
+│
+├── models/
+│   ├── __init__.py
+│   └── schemas.py
+│
+├── services/
+│   ├── __init__.py
+│   ├── document_process...
+│   └── rag_service.py
+│
+├── __init__.py
+├── config.py
+├── storage/
+└── .env
+```
+---
 ## 🛠️ Workflow and Architecture
 
 DocuChat AI follows a **streamlined, high-performance workflow**, from document upload to query response.
