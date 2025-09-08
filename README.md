@@ -44,6 +44,7 @@ PROJECT_ROOT/
 ├── __init__.py
 ├── config.py
 ├── storage/
+├── main.py
 └── .env
 ```
 ---
